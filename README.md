@@ -8,7 +8,13 @@ Muxboard is a desktop workspace for **Codex + tmux remote development**. It conn
 
 ## Screenshots
 
-Screenshots will be added here.
+### Remote workspace
+
+![Muxboard remote workspace](docs/images/workspace-overview.png)
+
+### Add a server
+
+![Add a server profile](docs/images/server-profile-dialog.png)
 
 ## Principles
 

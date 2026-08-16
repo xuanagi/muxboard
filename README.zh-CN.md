@@ -8,7 +8,13 @@ Muxboard 是一个面向 **Codex + tmux 远程开发** 的桌面工作台。它�
 
 ## 截图
 
-截图将在此处补充。
+### 远程工作区
+
+![Muxboard 远程工作区](docs/images/workspace-overview.png)
+
+### 添加服务器
+
+![添加服务器配置](docs/images/server-profile-dialog.png)
 
 ## 核心定位
 
