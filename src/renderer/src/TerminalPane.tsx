@@ -1,13 +1,14 @@
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import { useEffect, useRef } from 'react'
-import type { AppTheme, TerminalTab } from '../../shared/types'
+import type { AppLanguage, AppTheme, TerminalTab } from '../../shared/types'
 
 type Props = {
     tab: TerminalTab
     visible: boolean
     fontSize: number
     theme: AppTheme
+    language: AppLanguage
     onFontSizeDelta: (delta: number) => void
     onExit: (terminalId: string) => void
 }
@@ -30,7 +31,7 @@ const terminalThemes = {
     }
 } as const
 
-export function TerminalPane({ tab, visible, fontSize, theme, onFontSizeDelta, onExit }: Props): React.JSX.Element {
+export function TerminalPane({ tab, visible, fontSize, theme, language, onFontSizeDelta, onExit }: Props): React.JSX.Element {
     const containerRef = useRef<HTMLDivElement>(null)
     const terminalRef = useRef<Terminal | null>(null)
     const fitRef = useRef<FitAddon | null>(null)
@@ -76,7 +77,7 @@ export function TerminalPane({ tab, visible, fontSize, theme, onFontSizeDelta, o
         })
         const stopExit = window.muxboard.terminal.onExit((event) => {
             if (event.terminalId !== tab.id) return
-            terminal.writeln(`\r\n\x1b[33m[连接已断开，远端 tmux 会话仍在运行]\x1b[0m`)
+            terminal.writeln(`\r\n\x1b[33m[${language === 'zh' ? '连接已断开，远端 tmux 会话仍在运行' : 'Connection closed; remote tmux session is still running'}]\x1b[0m`)
             onExit(tab.id)
         })
         const observer = new ResizeObserver(() => {
@@ -142,7 +143,7 @@ export function TerminalPane({ tab, visible, fontSize, theme, onFontSizeDelta, o
             stopExit()
             terminal.dispose()
         }
-    }, [tab.id])
+    }, [tab.id, language])
 
     useEffect(() => {
         const terminal = terminalRef.current
@@ -175,6 +176,6 @@ export function TerminalPane({ tab, visible, fontSize, theme, onFontSizeDelta, o
     return <div
         ref={containerRef}
         className={`terminal-pane ${visible ? 'is-visible' : ''}`}
-        title="Shift + 鼠标拖选：自动复制 / Shift + drag: auto-copy"
+        title={language === 'zh' ? '按住 Shift 拖选：自动复制' : 'Shift + drag: auto-copy'}
     />
 }

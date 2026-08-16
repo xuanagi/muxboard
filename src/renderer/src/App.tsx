@@ -60,6 +60,10 @@ const copy = {
     zh: { servers: '服务器', theme: '主题', sleep: '休眠', sleepOff: '从不休眠', sleep5: '后台 5 分钟后', sleep30: '后台 30 分钟后', sleep60: '后台 1 小时后', sleepNow: '立即休眠后台终端', language: 'English', black: '黑色', gray: '灰色', light: '浅色', connect: '连接', connecting: '连接中…', refresh: '刷新', screenshot: '截图', file: '文件', disconnect: '断开', openSession: '打开一个 tmux 会话', workspace: '你的远程工作区' }
 } as const
 
+function localized(language: AppLanguage, en: string, zh: string): string {
+    return language === 'zh' ? zh : en
+}
+
 function errorMessage(error: unknown): string {
     if (error instanceof Error) return error.message.replace(/^Error invoking remote method '[^']+': Error: /u, '')
     return String(error)
@@ -284,7 +288,7 @@ export function App(): React.JSX.Element {
             setStatuses((current) => ({ ...current, [profile.id]: 'connected' }))
             await refreshSnapshot(profile.id)
             if (options.restoreTabs) await restoreTabs(profile)
-            if (!options.quiet) flash(`已连接 ${profile.name}`)
+            if (!options.quiet) flash(localized(language, `Connected to ${profile.name}`, `已连接 ${profile.name}`))
             return true
         } catch (error) {
             setStatuses((current) => ({ ...current, [profile.id]: 'error' }))
@@ -371,8 +375,8 @@ export function App(): React.JSX.Element {
         manuallyDisconnectedProfiles.current.delete(profile.id)
         if (profile.authenticationType === 'password' && !profile.rememberSecret) {
             setPrompt({
-                title: `连接 ${profile.name}`,
-                label: 'SSH 密码', secret: true, confirmText: '连接',
+                title: localized(language, `Connect to ${profile.name}`, `连接 ${profile.name}`),
+                label: localized(language, 'SSH password', 'SSH 密码'), secret: true, confirmText: t('connect'),
                 onConfirm: async (value) => { await connect(profile, value) }
             })
             return
@@ -396,7 +400,7 @@ export function App(): React.JSX.Element {
             setFileWorkspace(null)
             setWorkspaceMode('terminal')
         }
-        flash('SSH 已断开，远端任务继续运行')
+        flash(localized(language, 'SSH disconnected; remote tasks continue running', 'SSH 已断开，远端任务继续运行'))
     }
 
     useEffect(() => {
@@ -423,7 +427,7 @@ export function App(): React.JSX.Element {
                 reconnectingProfiles.current.delete(profile.id)
                 if (restored) {
                     autoReconnectProfiles.current.delete(profile.id)
-                    flash(`已自动重连 ${profile.name}，会话已恢复`)
+                    flash(localized(language, `Reconnected to ${profile.name}; sessions restored`, `已自动重连 ${profile.name}，会话已恢复`))
                 }
             }
         }
@@ -453,7 +457,7 @@ export function App(): React.JSX.Element {
             await refreshProfiles()
             setSelectedProfileId(saved.id)
             setServerDraft(null)
-            flash('服务器配置已保存')
+            flash(localized(language, 'Server profile saved', '服务器配置已保存'))
         } catch (error) { flash(errorMessage(error)) }
     }
 
@@ -466,8 +470,8 @@ export function App(): React.JSX.Element {
     })
 
     const removeServer = (profile: ServerProfile, replaceModal = false): void => setPrompt({
-        title: `移除 ${profile.name}？`,
-        confirmText: '移除', destructive: true, replaceModal,
+        title: localized(language, `Remove ${profile.name}?`, `移除 ${profile.name}？`),
+        confirmText: localized(language, 'Remove', '移除'), destructive: true, replaceModal,
         onConfirm: async () => {
             await window.muxboard.profiles.remove(profile.id)
             await refreshProfiles()
@@ -476,7 +480,7 @@ export function App(): React.JSX.Element {
                 setFileWorkspace(null)
                 setWorkspaceMode('terminal')
             }
-            flash('服务器配置已移除')
+            flash(localized(language, 'Server profile removed', '服务器配置已移除'))
         }
     })
 
@@ -540,7 +544,7 @@ export function App(): React.JSX.Element {
             await refreshProfiles()
             setSelectedProfileId(saved.id)
             setServerDraft({ ...serverDraft, id: saved.id, activeCodexProfileId: saved.activeCodexProfileId })
-            flash('Codex 配置已保存')
+            flash(localized(language, 'Codex profile saved', 'Codex 配置已保存'))
         } catch (error) { flash(errorMessage(error)) }
     }
 
@@ -555,7 +559,7 @@ export function App(): React.JSX.Element {
     }
 
     const upload = async (kind: 'clipboard' | 'file'): Promise<void> => {
-        if (!activeTab) return flash('请先打开一个 tmux 终端')
+        if (!activeTab) return flash(localized(language, 'Open a tmux terminal first', '请先打开一个 tmux 终端'))
         try {
             // The UI snapshot is refreshed on a timer. Fetch again here because a shell or
             // Codex may have changed directory just before the user starts an upload.
@@ -566,7 +570,7 @@ export function App(): React.JSX.Element {
             const activePane = activeSession?.windows.flatMap((windowItem) => windowItem.panes).find((pane) => pane.id === activePaneId)
                 ?? activeSession?.windows.find((windowItem) => windowItem.active)?.panes.find((pane) => pane.active)
             const destinationDirectory = activePane?.currentPath
-            if (kind === 'file' && !destinationDirectory) return flash('无法确定当前 pane 的工作目录')
+            if (kind === 'file' && !destinationDirectory) return flash(localized(language, "Can't determine the current pane's working directory", '无法确定当前 pane 的工作目录'))
             const result = kind === 'clipboard'
                 ? await window.muxboard.upload.clipboardImage(activeTab.profileId)
                 : await window.muxboard.upload.chooseFile(activeTab.profileId, destinationDirectory)
@@ -665,7 +669,7 @@ export function App(): React.JSX.Element {
             await refreshProfiles()
             setSelectedProfileId(saved.id)
             setServerDraft(null)
-            flash('Codex 默认配置已切换；新启动的 Codex 会话会使用它')
+            flash(localized(language, 'Default Codex profile changed; new Codex sessions will use it', 'Codex 默认配置已切换；新启动的 Codex 会话会使用它'))
         } catch (error) { flash(errorMessage(error)) }
     }
 
@@ -761,13 +765,13 @@ export function App(): React.JSX.Element {
         <main className={`app-shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
             <aside className="sidebar">
                 <header className="brand-row">
-                    <button className="brand-mark" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="切换侧栏"><img src={brandLogo} alt="" /></button>
+                    <button className="brand-mark" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={localized(language, 'Toggle sidebar', '切换侧栏')}><img src={brandLogo} alt="" /></button>
                     <div className="brand-copy"><strong>Muxboard</strong><span>REMOTE TMUX DESKTOP</span></div>
-                    <button className="icon-button add-server" onClick={() => setServerDraft({ ...emptyDraft })} title="添加服务器">＋</button>
+                    <button className="icon-button add-server" onClick={() => setServerDraft({ ...emptyDraft })} title={localized(language, 'Add server', '添加服务器')}>＋</button>
                 </header>
                 <div className="section-label"><span>{t('servers')}</span><span>{profiles.length}</span></div>
                 <nav className="server-list">
-                    {profiles.length === 0 && <button className="empty-server" onClick={() => setServerDraft({ ...emptyDraft })}>添加第一台服务器<br/><small>SSH 直连，无需部署服务</small></button>}
+                    {profiles.length === 0 && <button className="empty-server" onClick={() => setServerDraft({ ...emptyDraft })}>{localized(language, 'Add your first server', '添加第一台服务器')}<br/><small>{localized(language, 'Direct SSH connection; no service to deploy', 'SSH 直连，无需部署服务')}</small></button>}
                     {profiles.map((profile) => {
                         const profileStatus = statuses[profile.id] ?? 'disconnected'
                         return <div key={profile.id} className={`server-row ${selectedProfileId === profile.id ? 'is-selected' : ''} ${profileStatus === 'connecting' ? 'is-connecting' : ''}`}>
@@ -776,11 +780,11 @@ export function App(): React.JSX.Element {
                                 <span className="server-details"><b>{profile.name}</b><small>{profile.username}@{profile.host}:{profile.port}</small></span>
                                 {profileStatus === 'connecting' && <span className="server-connection-progress" aria-label={t('connecting')}><i aria-hidden="true">◌</i>{t('connecting')}</span>}
                             </button>
-                            <button className="row-menu" onClick={() => editServer(profile)} title="编辑">•••</button>
+                            <button className="row-menu" onClick={() => editServer(profile)} title={localized(language, 'Edit', '编辑')}>•••</button>
                         </div>
                     })}
                 </nav>
-                <footer className="sidebar-footer"><div className="sidebar-footer-actions"><button className={`footer-action-button restore-toggle ${restoreOnLaunch ? 'is-active' : ''}`} onClick={() => setRestoreOnLaunch((current) => !current)} title={restoreOnLaunch ? 'Restore workspace on startup: on' : 'Restore workspace on startup: off'}>↺</button><ThemePicker theme={theme} language={language} open={themeMenuOpen} onToggle={() => setThemeMenuOpen((current) => !current)} onSelect={updateTheme} /><SleepPolicyPicker minutes={backgroundTerminalSleepMinutes} language={language} open={sleepMenuOpen} onToggle={() => setSleepMenuOpen((current) => !current)} onSelect={updateBackgroundTerminalSleep} onSleepNow={() => void sleepBackgroundTerminals()} /><button className="footer-action-button" onClick={toggleLanguage} title="Switch language">{t('language')}</button></div></footer>
+                <footer className="sidebar-footer"><div className="sidebar-footer-actions"><button className={`footer-action-button restore-toggle ${restoreOnLaunch ? 'is-active' : ''}`} onClick={() => setRestoreOnLaunch((current) => !current)} title={restoreOnLaunch ? localized(language, 'Restore workspace on startup: on', '启动时恢复工作区：开启') : localized(language, 'Restore workspace on startup: off', '启动时恢复工作区：关闭')}>↺</button><ThemePicker theme={theme} language={language} open={themeMenuOpen} onToggle={() => setThemeMenuOpen((current) => !current)} onSelect={updateTheme} /><SleepPolicyPicker minutes={backgroundTerminalSleepMinutes} language={language} open={sleepMenuOpen} onToggle={() => setSleepMenuOpen((current) => !current)} onSelect={updateBackgroundTerminalSleep} onSleepNow={() => void sleepBackgroundTerminals()} /><button className="footer-action-button" onClick={toggleLanguage} title={localized(language, 'Switch language', '切换语言')}>{t('language')}</button></div></footer>
             </aside>
 
             <section className="workspace">
@@ -792,32 +796,32 @@ export function App(): React.JSX.Element {
                                 {selectedProfile && status === 'connected' && <button className="new-tmux-session-button" onClick={requestNewTmuxSession} title={language === 'zh' ? '新建 tmux 会话' : 'New tmux session'} aria-label={language === 'zh' ? '新建 tmux 会话' : 'New tmux session'}>＋</button>}
                             </div>
                         </div>
-                        {status !== 'connected' && <div className="tree-empty"><span>⌁</span><p>连接服务器后<br/>读取 tmux 工作区</p></div>}
+                        {status !== 'connected' && <div className="tree-empty"><span>⌁</span><p>{localized(language, 'Connect to a server to load\nyour tmux workspace', '连接服务器后\n读取 tmux 工作区').split('\n').map((line, index) => <>{index > 0 && <br />}{line}</>)}</p></div>}
                         {status === 'connected' && snapshot?.sessions.length === 0 && <button className="tree-empty tree-empty-create" onClick={requestNewTmuxSession}><span>＋</span><p>{language === 'zh' ? '还没有 tmux 会话' : 'No tmux sessions yet'}</p><small>{language === 'zh' ? '点击创建第一个会话' : 'Click to create your first session'}</small></button>}
                         {selectedProfile && snapshot?.sessions.map((session) => <div className="session-block" key={session.id}>
                             <div className="session-row" onDoubleClick={() => void attachSession(selectedProfile, session)}>
-                                <button className="session-toggle" onClick={() => toggleExpanded(setExpandedSessions, session.id)} aria-label={`${expandedSessions.has(session.id) ? '折叠' : '展开'}会话 ${session.name}`} aria-expanded={expandedSessions.has(session.id)}>{expandedSessions.has(session.id) ? '▾' : '▸'}</button>
+                                <button className="session-toggle" onClick={() => toggleExpanded(setExpandedSessions, session.id)} aria-label={`${localized(language, expandedSessions.has(session.id) ? 'Collapse' : 'Expand', expandedSessions.has(session.id) ? '折叠' : '展开')} ${localized(language, 'session', '会话')} ${session.name}`} aria-expanded={expandedSessions.has(session.id)}>{expandedSessions.has(session.id) ? '▾' : '▸'}</button>
                                 <button className="session-name" onClick={() => void attachSession(selectedProfile, session)} title={session.name}>{session.name}</button>
                                 <span className="attached-count">{session.attached || ''}</span>
-                                <button title="新建窗口" onClick={() => setPrompt({ title: `在 ${session.name} 新建窗口`, label: '窗口名称', placeholder: 'shell', confirmText: '创建', onConfirm: async (value) => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.createWindow(selectedProfile.id, session.name, value), '窗口已创建') })}>＋</button>
-                                <button title="会话操作" onClick={() => setPrompt({ title: `重命名 ${session.name}`, label: '新名称', value: session.name, confirmText: '保存', onConfirm: async (value) => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.renameSession(selectedProfile.id, session.name, value), '会话已重命名') })}>•••</button>
-                                <button title="删除会话" className="tree-danger" onClick={() => setPrompt({ title: `删除会话 ${session.name}？`, confirmText: '删除', destructive: true, onConfirm: async () => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.killSession(selectedProfile.id, session.name), '会话已删除') })}>×</button>
+                                <button title={localized(language, 'New window', '新建窗口')} onClick={() => setPrompt({ title: localized(language, `New window in ${session.name}`, `在 ${session.name} 新建窗口`), label: localized(language, 'Window name', '窗口名称'), placeholder: 'shell', confirmText: localized(language, 'Create', '创建'), onConfirm: async (value) => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.createWindow(selectedProfile.id, session.name, value), localized(language, 'Window created', '窗口已创建')) })}>＋</button>
+                                <button title={localized(language, 'Session actions', '会话操作')} onClick={() => setPrompt({ title: localized(language, `Rename ${session.name}`, `重命名 ${session.name}`), label: localized(language, 'New name', '新名称'), value: session.name, confirmText: localized(language, 'Save', '保存'), onConfirm: async (value) => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.renameSession(selectedProfile.id, session.name, value), localized(language, 'Session renamed', '会话已重命名')) })}>•••</button>
+                                <button title={localized(language, 'Delete session', '删除会话')} className="tree-danger" onClick={() => setPrompt({ title: localized(language, `Delete session ${session.name}?`, `删除会话 ${session.name}？`), confirmText: localized(language, 'Delete', '删除'), destructive: true, onConfirm: async () => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.killSession(selectedProfile.id, session.name), localized(language, 'Session deleted', '会话已删除')) })}>×</button>
                             </div>
                             {expandedSessions.has(session.id) && session.windows.map((windowItem) => <div className="window-block" key={windowItem.id}>
                                 <div className={`window-row ${activeTab?.profileId === selectedProfile.id && activeTab.sessionName === session.name && windowItem.active ? 'is-active' : ''}`} onDoubleClick={() => void openWindow(selectedProfile, session, windowItem)}>
-                                    <button className="window-toggle" onClick={() => toggleExpanded(setExpandedWindows, windowItem.id)} aria-label={`${expandedWindows.has(windowItem.id) ? '折叠' : '展开'}窗口 ${windowItem.name}`} aria-expanded={expandedWindows.has(windowItem.id)}>{expandedWindows.has(windowItem.id) ? '▾' : '▸'}</button>
+                                <button className="window-toggle" onClick={() => toggleExpanded(setExpandedWindows, windowItem.id)} aria-label={`${localized(language, expandedWindows.has(windowItem.id) ? 'Collapse' : 'Expand', expandedWindows.has(windowItem.id) ? '折叠' : '展开')} ${localized(language, 'window', '窗口')} ${windowItem.name}`} aria-expanded={expandedWindows.has(windowItem.id)}>{expandedWindows.has(windowItem.id) ? '▾' : '▸'}</button>
                                     <span className="tree-index">{windowItem.index}</span><span className="window-name" title={windowItem.name}>{windowItem.name}</span>
-                                    {windowItem.alert !== 'none' && <span className={`window-alert ${windowItem.alert}`} title={windowItem.alert === 'bell' ? '终端响铃，需要注意' : windowItem.alert === 'activity' ? '有新的终端输出' : '终端持续静默'} />}
-                                    <button title="重命名窗口" onClick={() => setPrompt({ title: `重命名窗口 ${windowItem.name}`, label: '新名称', value: windowItem.name, confirmText: '保存', onConfirm: async (value) => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.renameWindow(selectedProfile.id, windowItem.id, value), '窗口已重命名') })}>•••</button>
-                                    <button title="删除窗口" className="tree-danger" onClick={() => setPrompt({ title: `删除窗口 ${windowItem.name}？`, confirmText: '删除', destructive: true, onConfirm: async () => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.killWindow(selectedProfile.id, windowItem.id), '窗口已删除') })}>×</button>
+                                {windowItem.alert !== 'none' && <span className={`window-alert ${windowItem.alert}`} title={windowItem.alert === 'bell' ? localized(language, 'Terminal bell; attention needed', '终端响铃，需要注意') : windowItem.alert === 'activity' ? localized(language, 'New terminal output', '有新的终端输出') : localized(language, 'Terminal has been quiet', '终端持续静默')} />}
+                                <button title={localized(language, 'Rename window', '重命名窗口')} onClick={() => setPrompt({ title: localized(language, `Rename window ${windowItem.name}`, `重命名窗口 ${windowItem.name}`), label: localized(language, 'New name', '新名称'), value: windowItem.name, confirmText: localized(language, 'Save', '保存'), onConfirm: async (value) => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.renameWindow(selectedProfile.id, windowItem.id, value), localized(language, 'Window renamed', '窗口已重命名')) })}>•••</button>
+                                <button title={localized(language, 'Delete window', '删除窗口')} className="tree-danger" onClick={() => setPrompt({ title: localized(language, `Delete window ${windowItem.name}?`, `删除窗口 ${windowItem.name}？`), confirmText: localized(language, 'Delete', '删除'), destructive: true, onConfirm: async () => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.killWindow(selectedProfile.id, windowItem.id), localized(language, 'Window deleted', '窗口已删除')) })}>×</button>
                                 </div>
                                 {expandedWindows.has(windowItem.id) && windowItem.panes.map((pane) => <div className={`pane-row ${activeTab?.profileId === selectedProfile.id && activeTab.sessionName === session.name && activePaneIds[`${selectedProfile.id}\u0000${session.name}`] === pane.id ? 'is-active' : ''}`} key={pane.id}>
                                     <button className="pane-main" onClick={() => void openPane(selectedProfile, session, windowItem, pane)} title={pane.currentPath}>
                                         <span className="tree-index">{pane.index}</span><span>{pane.currentCommand || 'shell'}</span><small>{pane.width}×{pane.height}</small>
                                     </button>
-                                    <button title="左右分屏" onClick={() => void tmuxAction(selectedProfile.id, () => window.muxboard.tmux.splitPane(selectedProfile.id, pane.id, 'horizontal', pane.currentPath), '已左右分屏')}>↔</button>
-                                    <button title="上下分屏" onClick={() => void tmuxAction(selectedProfile.id, () => window.muxboard.tmux.splitPane(selectedProfile.id, pane.id, 'vertical', pane.currentPath), '已上下分屏')}>↕</button>
-                                    <button title="删除 pane" className="tree-danger" onClick={() => setPrompt({ title: `删除 pane ${pane.index}？`, confirmText: '删除', destructive: true, onConfirm: async () => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.killPane(selectedProfile.id, pane.id), 'Pane 已删除') })}>×</button>
+                                    <button title={localized(language, 'Split left/right', '左右分屏')} onClick={() => void tmuxAction(selectedProfile.id, () => window.muxboard.tmux.splitPane(selectedProfile.id, pane.id, 'horizontal', pane.currentPath), localized(language, 'Pane split left/right', '已左右分屏'))}>↔</button>
+                                    <button title={localized(language, 'Split top/bottom', '上下分屏')} onClick={() => void tmuxAction(selectedProfile.id, () => window.muxboard.tmux.splitPane(selectedProfile.id, pane.id, 'vertical', pane.currentPath), localized(language, 'Pane split top/bottom', '已上下分屏'))}>↕</button>
+                                    <button title={localized(language, 'Delete pane', '删除 pane')} className="tree-danger" onClick={() => setPrompt({ title: localized(language, `Delete pane ${pane.index}?`, `删除 pane ${pane.index}？`), confirmText: localized(language, 'Delete', '删除'), destructive: true, onConfirm: async () => tmuxAction(selectedProfile.id, () => window.muxboard.tmux.killPane(selectedProfile.id, pane.id), localized(language, 'Pane deleted', 'Pane 已删除')) })}>×</button>
                                 </div>)}
                             </div>)}
                         </div>)}
@@ -825,8 +829,8 @@ export function App(): React.JSX.Element {
 
                     <section className="terminal-workspace">
                         <div className="tab-strip">
-                            <button className="sidebar-trigger" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="切换侧栏">☰</button>
-                            <button className="tmux-collapse-button" onClick={() => setTmuxTreeOpen((current) => !current)} aria-label={tmuxTreeOpen ? '折叠 tmux 树' : '展开 tmux 树'} title={tmuxTreeOpen ? '折叠 tmux 树' : '展开 tmux 树'}>{tmuxTreeOpen ? '‹' : '›'}</button>
+                            <button className="sidebar-trigger" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={localized(language, 'Toggle sidebar', '切换侧栏')}>☰</button>
+                            <button className="tmux-collapse-button" onClick={() => setTmuxTreeOpen((current) => !current)} aria-label={localized(language, tmuxTreeOpen ? 'Collapse tmux tree' : 'Expand tmux tree', tmuxTreeOpen ? '折叠 tmux 树' : '展开 tmux 树')} title={localized(language, tmuxTreeOpen ? 'Collapse tmux tree' : 'Expand tmux tree', tmuxTreeOpen ? '折叠 tmux 树' : '展开 tmux 树')}>{tmuxTreeOpen ? '‹' : '›'}</button>
                             {tabs.map((tab) => <button key={tab.id} draggable className={`terminal-tab ${workspaceMode === 'terminal' && tab.id === activeTabId ? 'is-active' : ''} ${draggingTabId === tab.id ? 'is-dragging' : ''} ${tabDropTarget?.tabId === tab.id ? `is-drop-${tabDropTarget.position}` : ''}`} onDragStart={(event) => beginTabDrag(event, tab.id)} onDragOver={(event) => updateTabDropTarget(event, tab.id)} onDrop={(event) => dropTab(event, tab.id)} onDragEnd={() => { setDraggingTabId(null); setTabDropTarget(null) }} onClick={() => { setActiveTabId(tab.id); setSelectedProfileId(tab.profileId); setWorkspaceMode('terminal') }}>
                                 <span className="terminal-glyph">›_</span><span>{tab.title}</span><i className={`tab-pin ${pinnedSessionKeys.has(sessionKey(tab.profileId, tab.sessionName)) ? 'is-pinned' : ''}`} onClick={(event) => { event.stopPropagation(); togglePinnedSession(tab) }} title={pinnedSessionKeys.has(sessionKey(tab.profileId, tab.sessionName)) ? 'Unpin from startup workspace' : 'Pin to startup workspace'}>{pinnedSessionKeys.has(sessionKey(tab.profileId, tab.sessionName)) ? '★' : '☆'}</i><i onClick={(event) => { event.stopPropagation(); void closeTab(tab.id) }}>×</i>
                             </button>)}
@@ -845,7 +849,7 @@ export function App(): React.JSX.Element {
                             </div>
                         </div>
                         <div className="terminal-stage">
-                            {tabs.map((tab) => <TerminalPane key={tab.id} tab={tab} visible={workspaceMode === 'terminal' && tab.id === activeTabId} fontSize={terminalFontSize} theme={theme} onFontSizeDelta={(delta) => updateTerminalFontSize(terminalFontSizeRef.current + delta)} onExit={() => undefined} />)}
+                            {tabs.map((tab) => <TerminalPane key={tab.id} tab={tab} visible={workspaceMode === 'terminal' && tab.id === activeTabId} fontSize={terminalFontSize} theme={theme} language={language} onFontSizeDelta={(delta) => updateTerminalFontSize(terminalFontSizeRef.current + delta)} onExit={() => undefined} />)}
                             {fileWorkspace && <div className={`file-manager-host ${workspaceMode === 'files' ? 'is-visible' : ''}`}><FileManager
                                 profileId={fileWorkspace.profileId} serverName={fileWorkspace.serverName} initialRemotePath={fileWorkspace.initialRemotePath}
                                 language={language} onError={flash} onRequestOverwrite={requestFileOverwrite}
@@ -867,9 +871,9 @@ export function App(): React.JSX.Element {
                 </div>
             </section>
 
-            {serverDraft && <ServerDialog draft={serverDraft} setDraft={setServerDraft} onCancel={() => setServerDraft(null)} onSave={() => void saveServer()} onSaveCodex={() => saveCodexProfileEdits()} onApply={(codexProfileId) => saveAndApplyCodex(codexProfileId)} onRemove={serverDraft.id ? () => { const profile = profiles.find((item) => item.id === serverDraft.id); setServerDraft(null); if (profile) removeServer(profile, true) } : undefined} />}
-            {prompt && <PromptDialog state={prompt} onClose={() => setPrompt(null)} onError={(error) => flash(errorMessage(error))} />}
-            {fingerprint && <FingerprintDialog state={fingerprint} onCancel={() => setFingerprint(null)} onTrust={async () => {
+            {serverDraft && <ServerDialog language={language} draft={serverDraft} setDraft={setServerDraft} onCancel={() => setServerDraft(null)} onSave={() => void saveServer()} onSaveCodex={() => saveCodexProfileEdits()} onApply={(codexProfileId) => saveAndApplyCodex(codexProfileId)} onRemove={serverDraft.id ? () => { const profile = profiles.find((item) => item.id === serverDraft.id); setServerDraft(null); if (profile) removeServer(profile, true) } : undefined} />}
+            {prompt && <PromptDialog language={language} state={prompt} onClose={() => setPrompt(null)} onError={(error) => flash(errorMessage(error))} />}
+            {fingerprint && <FingerprintDialog language={language} state={fingerprint} onCancel={() => setFingerprint(null)} onTrust={async () => {
                 const state = fingerprint
                 setFingerprint(null)
                 try { await window.muxboard.ssh.trustHost(state.profileId, state.fingerprint); const profile = profiles.find((item) => item.id === state.profileId); if (profile) await connect(profile, state.secret) } catch (error) { flash(errorMessage(error)) }
@@ -904,7 +908,7 @@ function SleepPolicyPicker({ minutes, language, open, onToggle, onSelect, onSlee
     </div>
 }
 
-function ServerDialog({ draft, setDraft, onCancel, onSave, onSaveCodex, onApply, onRemove }: { draft: ServerDraft; setDraft: (draft: ServerDraft) => void; onCancel: () => void; onSave: () => void; onSaveCodex: () => Promise<void>; onApply: (codexProfileId: string) => Promise<void>; onRemove?: () => void }): React.JSX.Element {
+function ServerDialog({ language, draft, setDraft, onCancel, onSave, onSaveCodex, onApply, onRemove }: { language: AppLanguage; draft: ServerDraft; setDraft: (draft: ServerDraft) => void; onCancel: () => void; onSave: () => void; onSaveCodex: () => Promise<void>; onApply: (codexProfileId: string) => Promise<void>; onRemove?: () => void }): React.JSX.Element {
     const [expandedCodexIds, setExpandedCodexIds] = useState<Set<string>>(() => new Set())
     const [applyingCodexId, setApplyingCodexId] = useState<string | null>(null)
     const [savingCodexId, setSavingCodexId] = useState<string | null>(null)
@@ -917,7 +921,7 @@ function ServerDialog({ draft, setDraft, onCancel, onSave, onSaveCodex, onApply,
     })
     const addCodex = (): void => {
         const id = crypto.randomUUID()
-        setDraft({ ...draft, codexProfiles: [...draft.codexProfiles, { id, name: '新配置', baseUrl: 'https://api.openai.com/v1', model: 'gpt-5.4', apiKey: '' }], activeCodexProfileId: draft.activeCodexProfileId ?? id })
+        setDraft({ ...draft, codexProfiles: [...draft.codexProfiles, { id, name: localized(language, 'New profile', '新配置'), baseUrl: 'https://api.openai.com/v1', model: 'gpt-5.4', apiKey: '' }], activeCodexProfileId: draft.activeCodexProfileId ?? id })
         setExpandedCodexIds((current) => new Set([...current, id]))
     }
     const removeCodex = (id: string): void => {
@@ -934,51 +938,51 @@ function ServerDialog({ draft, setDraft, onCancel, onSave, onSaveCodex, onApply,
     }
     return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel() }}>
         <section className="modal server-dialog">
-            <div className="modal-kicker">SSH PROFILE</div><h2>{draft.id ? '编辑服务器' : '添加服务器'}</h2>
+            <div className="modal-kicker">SSH PROFILE</div><h2>{localized(language, draft.id ? 'Edit server' : 'Add server', draft.id ? '编辑服务器' : '添加服务器')}</h2>
             <div className="form-grid">
-                <label className="wide">名称<input autoFocus value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="开发服务器" /></label>
-                <label className="host-field">主机<input value={draft.host} onChange={(event) => update('host', event.target.value)} placeholder="192.168.1.20" /></label>
-                <label>端口<input type="number" value={draft.port} onChange={(event) => update('port', event.target.value)} /></label>
-                <label className="wide">用户名<input value={draft.username} onChange={(event) => update('username', event.target.value)} placeholder="ubuntu" /></label>
-                <label className="wide">认证方式<select value={draft.authenticationType} onChange={(event) => update('authenticationType', event.target.value as AuthenticationType)}><option value="password">密码</option><option value="privateKey">私钥</option><option value="agent">SSH Agent</option></select></label>
-                {draft.authenticationType === 'privateKey' && <label className="wide">私钥路径<div className="input-action"><input value={draft.privateKeyPath} onChange={(event) => update('privateKeyPath', event.target.value)} placeholder="~/.ssh/id_ed25519" /><button onClick={async () => { const value = await window.muxboard.profiles.revealPrivateKey(); if (value) update('privateKeyPath', value) }}>选择</button></div></label>}
-                {draft.authenticationType === 'agent' && <label className="wide">Agent 套接字<input value={draft.agentSocket} onChange={(event) => update('agentSocket', event.target.value)} placeholder="留空使用 SSH_AUTH_SOCK" /></label>}
-                {draft.authenticationType !== 'agent' && <label className="wide">{draft.authenticationType === 'password' ? '密码' : '私钥口令'}<input type="password" value={draft.secret} onChange={(event) => update('secret', event.target.value)} placeholder={draft.id ? '留空则保留已保存凭据' : '可在连接时输入'} /></label>}
-                {draft.authenticationType !== 'agent' && <label className="check-row wide"><input type="checkbox" checked={draft.rememberSecret} onChange={(event) => update('rememberSecret', event.target.checked)} /><span>使用系统安全存储记住凭据</span></label>}
+                <label className="wide">{localized(language, 'Name', '名称')}<input autoFocus value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder={localized(language, 'Development server', '开发服务器')} /></label>
+                <label className="host-field">{localized(language, 'Host', '主机')}<input value={draft.host} onChange={(event) => update('host', event.target.value)} placeholder="192.168.1.20" /></label>
+                <label>{localized(language, 'Port', '端口')}<input type="number" value={draft.port} onChange={(event) => update('port', event.target.value)} /></label>
+                <label className="wide">{localized(language, 'Username', '用户名')}<input value={draft.username} onChange={(event) => update('username', event.target.value)} placeholder="ubuntu" /></label>
+                <label className="wide">{localized(language, 'Authentication', '认证方式')}<select value={draft.authenticationType} onChange={(event) => update('authenticationType', event.target.value as AuthenticationType)}><option value="password">{localized(language, 'Password', '密码')}</option><option value="privateKey">{localized(language, 'Private key', '私钥')}</option><option value="agent">SSH Agent</option></select></label>
+                {draft.authenticationType === 'privateKey' && <label className="wide">{localized(language, 'Private key path', '私钥路径')}<div className="input-action"><input value={draft.privateKeyPath} onChange={(event) => update('privateKeyPath', event.target.value)} placeholder="~/.ssh/id_ed25519" /><button onClick={async () => { const value = await window.muxboard.profiles.revealPrivateKey(); if (value) update('privateKeyPath', value) }}>{localized(language, 'Browse', '选择')}</button></div></label>}
+                {draft.authenticationType === 'agent' && <label className="wide">{localized(language, 'Agent socket', 'Agent 套接字')}<input value={draft.agentSocket} onChange={(event) => update('agentSocket', event.target.value)} placeholder={localized(language, 'Leave blank to use SSH_AUTH_SOCK', '留空使用 SSH_AUTH_SOCK')} /></label>}
+                {draft.authenticationType !== 'agent' && <label className="wide">{draft.authenticationType === 'password' ? localized(language, 'Password', '密码') : localized(language, 'Private key passphrase', '私钥口令')}<input type="password" value={draft.secret} onChange={(event) => update('secret', event.target.value)} placeholder={draft.id ? localized(language, 'Leave blank to retain saved credentials', '留空则保留已保存凭据') : localized(language, 'You can enter this when connecting', '可在连接时输入')} /></label>}
+                {draft.authenticationType !== 'agent' && <label className="check-row wide"><input type="checkbox" checked={draft.rememberSecret} onChange={(event) => update('rememberSecret', event.target.checked)} /><span>{localized(language, 'Remember credentials with system secure storage', '使用系统安全存储记住凭据')}</span></label>}
             </div>
             <div className="codex-profiles">
-                <div className="codex-profiles-heading"><h3>Codex 配置</h3><button type="button" onClick={addCodex}>＋ 添加</button></div>
-                {draft.codexProfiles.length === 0 && <p className="codex-empty">尚未配置 API Provider。</p>}
+                <div className="codex-profiles-heading"><h3>{localized(language, 'Codex profiles', 'Codex 配置')}</h3><button type="button" onClick={addCodex}>＋ {localized(language, 'Add', '添加')}</button></div>
+                {draft.codexProfiles.length === 0 && <p className="codex-empty">{localized(language, 'No API provider configured.', '尚未配置 API Provider。')}</p>}
                 {draft.codexProfiles.map((item) => {
                     const expanded = expandedCodexIds.has(item.id)
                     const active = draft.activeCodexProfileId === item.id
                     return <div className={`codex-profile-card ${expanded ? 'is-expanded' : ''}`} key={item.id}>
                         <div className="codex-profile-summary">
-                            <button type="button" className="codex-profile-main" onClick={() => toggleCodex(item.id)} aria-expanded={expanded} title={expanded ? '收起配置' : '展开配置'}>
-                                <span className="disclosure">{expanded ? '▾' : '▸'}</span><span className="codex-profile-name">{item.name || '未命名配置'}</span><span className="codex-profile-model">{item.model || '未设置模型'}</span><span className="codex-profile-url">{item.baseUrl || '未设置 Base URL'}</span>
+                            <button type="button" className="codex-profile-main" onClick={() => toggleCodex(item.id)} aria-expanded={expanded} title={localized(language, expanded ? 'Collapse profile' : 'Expand profile', expanded ? '收起配置' : '展开配置')}>
+                                <span className="disclosure">{expanded ? '▾' : '▸'}</span><span className="codex-profile-name">{item.name || localized(language, 'Unnamed profile', '未命名配置')}</span><span className="codex-profile-model">{item.model || localized(language, 'No model set', '未设置模型')}</span><span className="codex-profile-url">{item.baseUrl || localized(language, 'No Base URL set', '未设置 Base URL')}</span>
                             </button>
-                            <span className={`codex-active-badge ${active ? '' : 'is-empty'}`}>{active ? '已启用' : ''}</span>
-                            <button type="button" className="apply-codex-button" disabled={applyingCodexId !== null} aria-busy={applyingCodexId === item.id} onClick={() => void applyCodex(item.id)}>{applyingCodexId === item.id ? <><span className="button-spinner">↻</span>应用中…</> : '应用'}</button>
+                            <span className={`codex-active-badge ${active ? '' : 'is-empty'}`}>{active ? localized(language, 'Active', '已启用') : ''}</span>
+                            <button type="button" className="apply-codex-button" disabled={applyingCodexId !== null} aria-busy={applyingCodexId === item.id} onClick={() => void applyCodex(item.id)}>{applyingCodexId === item.id ? <><span className="button-spinner">↻</span>{localized(language, 'Applying…', '应用中…')}</> : localized(language, 'Apply', '应用')}</button>
                         </div>
                         {expanded && <div className="codex-profile-details">
-                            <label>名称<input value={item.name} onChange={(event) => updateCodex(item.id, { name: event.target.value })} placeholder="工作 API" /></label>
-                            <label>模型<input value={item.model} onChange={(event) => updateCodex(item.id, { model: event.target.value })} placeholder="gpt-5.4" /></label>
+                            <label>{localized(language, 'Name', '名称')}<input value={item.name} onChange={(event) => updateCodex(item.id, { name: event.target.value })} placeholder={localized(language, 'Work API', '工作 API')} /></label>
+                            <label>{localized(language, 'Model', '模型')}<input value={item.model} onChange={(event) => updateCodex(item.id, { model: event.target.value })} placeholder="gpt-5.4" /></label>
                             <label className="wide">Base URL<input value={item.baseUrl} onChange={(event) => updateCodex(item.id, { baseUrl: event.target.value })} placeholder="https://api.example.com/v1" /></label>
-                            <label className="wide">API Key<input type="password" value={item.apiKey ?? ''} onChange={(event) => updateCodex(item.id, { apiKey: event.target.value })} placeholder="留空则保留已安全保存的 Key" /></label>
+                            <label className="wide">API Key<input type="password" value={item.apiKey ?? ''} onChange={(event) => updateCodex(item.id, { apiKey: event.target.value })} placeholder={localized(language, 'Leave blank to retain the securely saved key', '留空则保留已安全保存的 Key')} /></label>
                             <div className="codex-profile-detail-actions">
-                                <button type="button" className="primary-button" disabled={savingCodexId !== null} onClick={() => void saveCodex(item.id)}>{savingCodexId === item.id ? <><span className="button-spinner">↻</span>保存中…</> : '保存配置'}</button>
-                                <button type="button" className="danger-button" disabled={savingCodexId !== null} onClick={() => removeCodex(item.id)}>删除配置</button>
+                                <button type="button" className="primary-button" disabled={savingCodexId !== null} onClick={() => void saveCodex(item.id)}>{savingCodexId === item.id ? <><span className="button-spinner">↻</span>{localized(language, 'Saving…', '保存中…')}</> : localized(language, 'Save profile', '保存配置')}</button>
+                                <button type="button" className="danger-button" disabled={savingCodexId !== null} onClick={() => removeCodex(item.id)}>{localized(language, 'Delete profile', '删除配置')}</button>
                             </div>
                         </div>}
                     </div>
                 })}
             </div>
-            <div className="modal-actions">{onRemove && <button className="danger-link" onClick={onRemove}>移除服务器</button>}<span/><button onClick={onCancel}>取消</button><button className="primary-button" onClick={onSave}>保存</button></div>
+            <div className="modal-actions">{onRemove && <button className="danger-link" onClick={onRemove}>{localized(language, 'Remove server', '移除服务器')}</button>}<span/><button onClick={onCancel}>{localized(language, 'Cancel', '取消')}</button><button className="primary-button" onClick={onSave}>{localized(language, 'Save', '保存')}</button></div>
         </section>
     </div>
 }
 
-function PromptDialog({ state, onClose, onError }: { state: PromptState; onClose: () => void; onError: (error: unknown) => void }): React.JSX.Element {
+function PromptDialog({ language, state, onClose, onError }: { language: AppLanguage; state: PromptState; onClose: () => void; onError: (error: unknown) => void }): React.JSX.Element {
     const [value, setValue] = useState(state.value ?? '')
     const [working, setWorking] = useState(false)
     const submit = async (): Promise<void> => {
@@ -986,9 +990,9 @@ function PromptDialog({ state, onClose, onError }: { state: PromptState; onClose
         setWorking(true)
         try { await state.onConfirm(value.trim()); onClose() } catch (error) { onError(error); setWorking(false) }
     }
-    return <div className={`modal-backdrop ${state.replaceModal ? 'modal-replacement' : ''}`}><section className={`modal prompt-dialog ${state.replaceModal ? 'modal-replacement-dialog' : ''}`}><div className="modal-kicker">MUXBOARD</div><h2>{state.title}</h2>{state.label && <label>{state.label}<input autoFocus type={state.secret ? 'password' : 'text'} value={value} placeholder={state.placeholder} onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void submit() }} /></label>}<div className="modal-actions"><span/><button onClick={onClose}>取消</button><button disabled={working} className={state.destructive ? 'danger-button' : 'primary-button'} onClick={() => void submit()}>{state.confirmText ?? '确认'}</button></div></section></div>
+    return <div className={`modal-backdrop ${state.replaceModal ? 'modal-replacement' : ''}`}><section className={`modal prompt-dialog ${state.replaceModal ? 'modal-replacement-dialog' : ''}`}><div className="modal-kicker">MUXBOARD</div><h2>{state.title}</h2>{state.label && <label>{state.label}<input autoFocus type={state.secret ? 'password' : 'text'} value={value} placeholder={state.placeholder} onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void submit() }} /></label>}<div className="modal-actions"><span/><button onClick={onClose}>{localized(language, 'Cancel', '取消')}</button><button disabled={working} className={state.destructive ? 'danger-button' : 'primary-button'} onClick={() => void submit()}>{state.confirmText ?? localized(language, 'Confirm', '确认')}</button></div></section></div>
 }
 
-function FingerprintDialog({ state, onCancel, onTrust }: { state: FingerprintState; onCancel: () => void; onTrust: () => void }): React.JSX.Element {
-    return <div className="modal-backdrop"><section className="modal fingerprint-dialog"><div className="modal-kicker">HOST VERIFICATION</div><h2>确认服务器身份</h2><p>{state.message}</p><code>{state.fingerprint}</code><p className="security-note">请与服务器管理员或本机 <b>ssh-keygen -lf</b> 的结果核对。仅在确认无误后信任。</p><div className="modal-actions"><span/><button onClick={onCancel}>取消</button><button className="primary-button" onClick={onTrust}>信任并连接</button></div></section></div>
+function FingerprintDialog({ language, state, onCancel, onTrust }: { language: AppLanguage; state: FingerprintState; onCancel: () => void; onTrust: () => void }): React.JSX.Element {
+    return <div className="modal-backdrop"><section className="modal fingerprint-dialog"><div className="modal-kicker">HOST VERIFICATION</div><h2>{localized(language, 'Confirm server identity', '确认服务器身份')}</h2><p>{state.message}</p><code>{state.fingerprint}</code><p className="security-note">{localized(language, 'Compare this with your server administrator or the result of ', '请与服务器管理员或本机 ')}<b>ssh-keygen -lf</b>{localized(language, '. Trust this server only after it matches.', ' 的结果核对。仅在确认无误后信任。')}</p><div className="modal-actions"><span/><button onClick={onCancel}>{localized(language, 'Cancel', '取消')}</button><button className="primary-button" onClick={onTrust}>{localized(language, 'Trust and connect', '信任并连接')}</button></div></section></div>
 }
